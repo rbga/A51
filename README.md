@@ -11,3 +11,6 @@ https://docs.google.com/presentation/d/1yhLDQupQcLxlD4wfGEHZpi9GepGllEBeM1k0Bonb
 
 PROGRESS AND RESULTS
 https://docs.google.com/presentation/d/15LEjfh_IZqzSwHz8GNqzD6ooeeCmD4QvO4HoV1rBC6c/edit?usp=sharing
+
+PROJECT RESOURCES
+https://docs.google.com/presentation/d/1rJHgJzzFisi86PKm76uFG0RQFeCqf45I5FcTA2uSv3g/edit?usp=sharing
