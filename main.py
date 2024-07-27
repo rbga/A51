@@ -11,6 +11,7 @@ import displayer
 import pyglet
 from pyglet.gl import *
 import event_support as esp
+import videoButton
 from logprinter import print_log, print_simple_log, log_std
 
 
@@ -43,7 +44,29 @@ from logprinter import print_log, print_simple_log, log_std
 #                           Block for every Code Module in the file.
 #------------------------------------------------------------------
 #
+#------------------------------------------------------------------
+#               LAST MODIFICATION
+#            Developer  :   Rishi Balasubramanian
+#            Call Sign  :   RBGA
+# Date of Modification  :   26th JULY 2024
+#
+#          Description  :   Replaced Static Image Button with Video
+#                           Button Class. Modified sub functions
+#                           related to button and processes.
+#                           InferenceVideo is now a Sprite instead
+#                           of Blit.
+#                           on_draw()
+#                           on_mouse_motion()
+#                           on_mouse_press()
+#                           on_mouse_release()
+#                           on_resize()
+#------------------------------------------------------------------
+#
+#
 ################################################################################################
+
+
+
 
 
 
@@ -234,7 +257,7 @@ def play():
     
     config = pyglet.gl.Config(double_buffer=True)
     batch = pyglet.graphics.Batch()
-    window = pyglet.window.Window(config=config, width=WINDOW_WIDTH, height=WINDOW_HEIGHT, caption='YOLOv5 Detection')
+    window = pyglet.window.Window(config=config, width=WINDOW_WIDTH, height=WINDOW_HEIGHT, caption='YOLOv5 Detection', resizable=True)
 
     DETECT_LABEL = 'DETECT'
     TRAIN_LABEL = 'TRAIN'
@@ -262,10 +285,31 @@ def play():
     button_y = WINDOW_HEIGHT / 9  # Y position for the buttons, close to the bottom
     button_spacing = 20  # Spacing between buttons
 
-    detectPositionX = (WINDOW_WIDTH - (2 * rect_width + button_spacing)) / 2  # Centering the buttons horizontally
-    trainPositionX = detectPositionX + rect_width + button_spacing
+    detectPositionX = (WINDOW_WIDTH - (3 * rect_width + button_spacing)) / 2  # Centering the buttons horizontally
+    trainPositionX = detectPositionX + rect_width + rect_width + button_spacing
     tBoxX = (detectPositionX + trainPositionX) / 2 + (rect_width / 5) 
     tBoxY = button_y - 30
+
+    detectButtonStateVisuals = {
+                        'idle'  : 'detectIdleState_15M.mp4',
+            'hover_transition'  : 'detectHoverTransition_15M.mp4',
+                'hover_idle'    : 'detectHoverIdle_15M.mp4',
+        'dehover_transition'    : 'detectUnhoverTransition_15M.mp4',
+            'press_transition'  : 'detectPressedTransition_15M.mp4',
+                'press_idle'    : 'detectPressedIdle_15M.mp4',
+        'unpress_transition'    : 'detectUnpressedTransition_15M.mp4'
+    }
+
+    trainButtonStateVisuals = {
+                        'idle'  : 'trainIdleState_15M.mp4',
+            'hover_transition'  : 'trainHoverTransition_15M.mp4',
+                'hover_idle'    : 'trainHoverIdle_15M.mp4',
+        'dehover_transition'    : 'trainUnhoverTransition_15M.mp4',
+            'press_transition'  : 'trainPressedTransition_15M.mp4',
+                'press_idle'    : 'trainPressedIdle_15M.mp4',
+        'unpress_transition'    : 'trainUnpressedTransition_15M.mp4'
+    }
+
 
     rect_x = (WINDOW_WIDTH - (2 * rect_width)) / 2 - button_spacing
     rect_y = WINDOW_HEIGHT / 4
@@ -405,17 +449,20 @@ def play():
             window.push_handlers(te_b)
             text_entry_active = True
 
-    # Render buttons
-    dt_b = displayer.render_button(DETECT_LABEL, detectPositionX, button_y, 'detect_press.png', 'detect_unpress.png', 'detect_hover.png', batch)
-    tr_b = displayer.render_button(TRAIN_LABEL, trainPositionX, button_y, 'train_press.png', 'train_unpress.png', 'train_hover.png', batch)
+    # # Render buttons
+    # detectButton = displayer.render_button(DETECT_LABEL, detectPositionX, button_y, 'detect_press.png', 'detect_unpress.png', 'detect_hover.png', batch)
+    # trainButton = displayer.render_button(TRAIN_LABEL, trainPositionX, button_y, 'train_press.png', 'train_unpress.png', 'train_hover.png', batch)
     te_b = displayer.render_TextEntry(tBoxX, tBoxY, batch)
 
-    window.push_handlers(dt_b)
-    window.push_handlers(tr_b)
+    detectButton = videoButton.VideoButton(detectPositionX, button_y, 200, 200, WINDOW_WIDTH, WINDOW_HEIGHT, detectButtonStateVisuals, batch, foreground, on_dt_toggle, False)
+    trainButton  = videoButton.VideoButton(trainPositionX,  button_y, 200, 200, WINDOW_WIDTH, WINDOW_HEIGHT, trainButtonStateVisuals,  batch, foreground, on_tr_toggle, False)
+
+    # window.push_handlers(detectButton)
+    # window.push_handlers(trainButton)
 
 
-    dt_b.set_handler('on_toggle', on_dt_toggle)
-    tr_b.set_handler('on_toggle', on_tr_toggle)
+    # detectButton.set_handler('on_toggle', on_dt_toggle)
+    # trainButton.set_handler('on_toggle', on_tr_toggle)
     te_b.set_handler('on_commit', text_entry_handler)
     
 
@@ -432,6 +479,8 @@ def play():
     def on_draw():
         window.clear()
         batch.draw()
+        detectButton.draw()
+        trainButton.draw()
         # Set up the top viewport (640x640)
         glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
         try:
@@ -439,7 +488,8 @@ def play():
                 try:
                     op = output_frames.get_nowait()  # Use get_nowait to avoid blocking
                     pyg = displayer.cv2_to_pyglet_image(op)
-                    pyg.blit(rect_x, rect_y, 0)
+                    inferenceSprite = pyglet.sprite.Sprite(img=pyg, x=rect_x, y=rect_y, batch=batch, group=foreground)
+                    #pyg.blit(rect_x, rect_y, 0)
                     
                     try:
                         new_texts = labelQueue.get_nowait()
@@ -458,9 +508,92 @@ def play():
             # Log or handle the exception appropriately
             print(f"Error occurred: {e}")
             displayer.render_splash_screen()
-
-        # Render buttons
+        
         batch.draw()
+        detectButton.draw()
+        trainButton.draw()
+
+    @window.event
+    ###----------------------------------------------------------------------
+    #           <on_mouse_motion>()
+    #       Inputs    :     x, y: The current mouse coordinates.
+    #                       dx, dy: The change in mouse position along the x 
+    #                       and y axes, respectively.
+    #
+    #       Output    :     None
+    #   Description   :     This function is called whenever the mouse is 
+    #                       moved. It updates the state of detectButton and 
+    #                       trainButton based on the new mouse coordinates, 
+    #                       allowing them to respond to hover events or other 
+    #                       motion-based interactions.
+    ###----------------------------------------------------------------------
+    def on_mouse_motion(x, y, dx, dy):
+        detectButton.on_mouse_motion(x, y, dx, dy)
+        trainButton.on_mouse_motion(x, y, dx, dy)
+
+
+
+    @window.event
+    ###----------------------------------------------------------------------
+    #           <on_mouse_press>()
+    #       Inputs    :     x, y: The coordinates of the mouse when the button is pressed.
+    #                       button: The mouse button that was pressed (e.g., left, right).
+    #                       modifiers: Any modifier keys pressed (e.g., Shift, Ctrl).
+    #
+    #       Output    :     None
+    #   Description   :     This function is triggered when a mouse button is pressed. 
+    #                       It handles mouse press events for detectButton and trainButton, 
+    #                       updating their states to reflect the press action. This can 
+    #                       include visual feedback or triggering specific button functions.
+    ###----------------------------------------------------------------------
+    def on_mouse_press(x, y, button, modifiers):
+        detectButton.on_mouse_press(x, y, button, modifiers)
+        trainButton.on_mouse_press(x, y, button, modifiers)
+
+
+
+
+    @window.event
+    ###----------------------------------------------------------------------
+    #           <on_mouse_release>()
+    #       Inputs    :     x, y: The coordinates of the mouse when the button is pressed.
+    #                       button: The mouse button that was pressed (e.g., left, right).
+    #                       modifiers: Any modifier keys pressed (e.g., Shift, Ctrl).
+    #
+    #       Output    :     None
+    #   Description   :     This function handles mouse release events, updating 
+    #                       the states of detectButton and trainButton accordingly. 
+    #                       It is used to detect the end of a button press and may 
+    #                       trigger actions associated with a full click cycle.
+    ###----------------------------------------------------------------------
+    def on_mouse_release(x, y, button, modifiers):
+        detectButton.on_mouse_release(x, y, button, modifiers)
+        trainButton.on_mouse_release(x, y, button, modifiers)
+
+
+
+
+    @window.event
+    ###----------------------------------------------------------------------
+    #              <on_resize>()
+    #       Inputs    :     width: The new width of the window.
+    #                       height: The new height of the window.
+    #
+    #       Output    :     None
+    #   Description   :     This function is called when the window is resized. 
+    #                       It adjusts the size and positioning of detectButton 
+    #                       and trainButton to ensure they scale appropriately 
+    #                       with the new window dimensions. This helps maintain 
+    #                       a consistent layout and user experience regardless 
+    #                       of the window size.
+    ###----------------------------------------------------------------------
+    def on_resize(width, height):
+        detectButton.resize(width, height)
+        trainButton.resize(width, height)
+
+    pyglet.clock.schedule_interval(detectButton.update, 1/60)  # 60 Hz update rate
+    pyglet.clock.schedule_interval(trainButton.update, 1/60)  # 60 Hz update rate
+
 
 
     @window.event

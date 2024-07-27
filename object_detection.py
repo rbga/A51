@@ -80,7 +80,7 @@ def detect_objects(frame_processed, original_frame, results):
             x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
             class_id = box.cls.item()  # Get class ID for each box
             class_name = labels[class_id]
-            #vsp.draw_crosshair(original_frame, x1, y1, x2, y2, class_name)
+            vsp.draw_crosshair(original_frame, x1, y1, x2, y2, class_name)
     
     return original_frame
 

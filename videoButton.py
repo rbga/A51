@@ -32,23 +32,42 @@ import pyglet
 #                           Block for every Code Module in the file.
 #------------------------------------------------------------------
 #
+#------------------------------------------------------------------
+#               LAST MODIFICATION
+#            Developer  :   Rishi Balasubramanian
+#            Call Sign  :   RBGA
+# Date of Modification  :   26th JULY 2024
+#
+#          Description  :   Video rendered through Sprite instead of Blit
+#                           Added CodingGuidelines comments for all wrong.
+#                           __init__()
+#                           resize()
+#                           update_sprite()
+#                           is_inside()
+#                           draw()
+#------------------------------------------------------------------
+#
 ################################################################################################
 
 
-class VideoButton:
+class VideoButton(pyglet.event.EventDispatcher):
 
     ###----------------------------------------------------------------------
-    # Initialize the VideoButton.
+    #             <__init__>()
+    #       Inputs    :     x, y: The initial position of the button.
+    #                       width, height: The initial size of the button.
+    #                       WINDOW_WIDTH, WINDOW_HEIGHT: The initial dimensions of the window.
+    #                       videos: A dictionary mapping states to video file paths.
+    #                       batch: The Pyglet graphics batch to which the button belongs.
+    #                       group: The Pyglet group for layering (optional).
+    #                       on_toggle_callback: A callback function triggered on state changes (optional).
+    #                       verbose: A flag for enabling verbose logging.
     #
-    # :param x: X-coordinate of the button's position.
-    # :param y: Y-coordinate of the button's position.
-    # :param width: Initial width of the button.
-    # :param height: Initial height of the button.
-    # :param videos: Dictionary mapping states to video file paths.
-    # :param batch: Pyglet graphics batch for drawing.
-    # :param verbose: Flag for printing debug information.
+    #       Output    :     None
+    #   Description   :     Initializes the button, setting its position, size, videos, 
+    #                       state, and other properties. It also loads the videos and sets the initial state.
     ###----------------------------------------------------------------------
-    def __init__(self, x, y, width, height, videos, batch, verbose = True):
+    def __init__(self, x, y, width, height, WINDOW_WIDTH, WINDOW_HEIGHT, videos, batch, group=None, on_toggle_callback=None, verbose=True):
         self.x = x
         self.y = y
         self.original_width = width
@@ -56,16 +75,72 @@ class VideoButton:
         self.button_width = width
         self.button_height = height
         self.batch = batch
+        self.group = group if group is not None else pyglet.graphics.OrderedGroup(0)
         self.videos = videos
         self.state = 'idle'
         self.current_player = None
         self.verbose = verbose
+        self.on_toggle_callback = on_toggle_callback
+        self.sprite = None
+
+        # Store initial window size as reference
+        self.initial_window_width = WINDOW_WIDTH
+        self.initial_window_height = WINDOW_HEIGHT
+
         self.load_videos()
         self.set_state(self.state)
 
+        self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
 
     ###----------------------------------------------------------------------
-    # Load videos for each button state and initialize media players.
+    #              <resize>()
+    #       Inputs    :     window_width: The new width of the window.
+    #                       window_height: The new height of the window.
+    #
+    #       Output    :     None
+    #   Description   :     Adjusts the button's size proportionally based 
+    #                       on the new window dimensions while maintaining 
+    #                       the aspect ratio. It updates the button's size 
+    #                       and the corresponding sprite if necessary.
+    ###----------------------------------------------------------------------
+    def resize(self, window_width, window_height):
+        width_factor = window_width / self.initial_window_width
+        height_factor = window_height / self.initial_window_height
+
+        new_width = int(self.original_width * width_factor)
+        new_height = int(self.original_height * height_factor)
+
+        aspect_ratio = self.original_width / self.original_height
+        if new_width / new_height > aspect_ratio:
+            new_width = int(new_height * aspect_ratio)
+        else:
+            new_height = int(new_width / aspect_ratio)
+
+        if self.button_width != new_width or self.button_height != new_height:
+            self.button_width = new_width
+            self.button_height = new_height
+            if self.verbose:
+                print(f"Button resized to {self.button_width}x{self.button_height}")
+
+        if self.verbose:
+            print(f"Resize called with window_width={window_width}, window_height={window_height}")
+
+        # Update sprite with new dimensions
+        if self.sprite:
+            self.sprite.scale = min(self.button_width / self.sprite.width, self.button_height / self.sprite.height)
+
+
+
+
+    ###----------------------------------------------------------------------
+    #            <load_videos>()
+    #       Inputs    :     None
+    #
+    #       Output    :     None
+    #   Description   :     Loads the videos specified for different button 
+    #                       states into Pyglet media players, associating each 
+    #                       state with its respective player. Handles any errors 
+    #                       during loading.
     ###----------------------------------------------------------------------
     def load_videos(self):
         self.players = {}
@@ -76,16 +151,22 @@ class VideoButton:
                 source = pyglet.resource.media(path)
                 player = pyglet.media.Player()
                 player.queue(source)
-                self.players[state] = player
                 player.on_eos = self.on_eos
+                self.players[state] = player
+                if self.verbose:
+                    print(f"Loaded video {path} for state {state}")
             except Exception as e:
                 print(f"Error loading video {path}: {e}")
 
-
     ###----------------------------------------------------------------------
-    # Change the button's state and play the corresponding video.
+    #             <set_state>()
+    #       Inputs    :     new_state: The new state to transition to.
     #
-    # :param new_state: The new state to transition to.
+    #       Output    :     None
+    #   Description   :     Changes the button's state, handling the transition 
+    #                       between different video players. It ensures the correct 
+    #                       playback behavior (looping or non-looping) for the new 
+    #                       state and updates the sprite accordingly.
     ###----------------------------------------------------------------------
     def set_state(self, new_state):
         if new_state in self.players:
@@ -94,7 +175,7 @@ class VideoButton:
                     print(f"Stopping {self.state}")
                 self.current_player.pause()
                 self.current_player.seek(0)
-            
+
             if self.verbose:
                 print(f"Switching to {new_state}")
             self.current_player = self.players[new_state]
@@ -109,9 +190,18 @@ class VideoButton:
             if self.verbose:
                 print(f"Playing {new_state}, loop={self.current_player.loop}")
 
+            # Update the sprite with the new texture
+            self.update_sprite()
 
     ###----------------------------------------------------------------------
-    # Handle end of stream event for the current video.
+    #              <on_eos>()
+    #       Inputs    :     None
+    #
+    #       Output    :     None
+    #   Description   :     Called when the end of a video stream is reached. 
+    #                       It handles state transitions after certain videos 
+    #                       finish playing, ensuring proper looping for idle 
+    #                       states and resetting the video playback.
     ###----------------------------------------------------------------------
     def on_eos(self):
         if self.verbose:
@@ -130,7 +220,7 @@ class VideoButton:
             self.current_player.loop = True
             if self.verbose:
                 print(f"Ensured looping for state {self.state}")
-        
+
         if self.current_player.loop:
             if self.verbose:
                 print(f"Restarting loop for state {self.state}")
@@ -138,13 +228,38 @@ class VideoButton:
             self.current_player.play()
 
 
+
+
     ###----------------------------------------------------------------------
-    # Handle mouse motion events to change button state based on mouse position.
+    #          <update_sprite>()
+    #       Inputs    :     None
     #
-    # :param x: X-coordinate of the mouse.
-    # :param y: Y-coordinate of the mouse.
-    # :param dx: Change in X-coordinate since the last event.
-    # :param dy: Change in Y-coordinate since the last event.
+    #       Output    :     None
+    #   Description   :     Updates or creates the sprite used to display the 
+    #                       button's video. It scales the sprite based on the 
+    #                       current button dimensions and positions it correctly.
+    ###----------------------------------------------------------------------
+    def update_sprite(self):
+        if self.current_player and self.current_player.source:
+            texture = self.current_player.texture
+            if texture:
+                if self.sprite:
+                    self.sprite.delete()
+                self.sprite = pyglet.sprite.Sprite(texture, x=self.x, y=self.y, batch=self.batch, group=self.group)
+                self.sprite.scale = min(self.button_width / texture.width, self.button_height / texture.height)
+                if self.verbose:
+                    print(f"Sprite updated for {self.state}")
+
+
+    ###----------------------------------------------------------------------
+    #           <on_mouse_motion>()
+    #       Inputs    :     x, y: The current mouse coordinates.
+    #                       dx, dy: The change in mouse position.
+    #
+    #       Output    :     None
+    #   Description   :     Handles mouse movement events. If the mouse is 
+    #                       over the button, it transitions to the hover state; 
+    #                       otherwise, it transitions away from the hover state.
     ###----------------------------------------------------------------------
     def on_mouse_motion(self, x, y, dx, dy):
         if self.is_mouse_over(x, y):
@@ -154,30 +269,51 @@ class VideoButton:
             if self.state == 'hover_idle':
                 self.set_state('dehover_transition')
 
-
     ###----------------------------------------------------------------------
-    # Handle mouse press events to change button state when pressed.
+    #           <on_mouse_press>()
+    #       Inputs    :     x, y: The coordinates of the mouse when the button is pressed.
+    #                       button: The mouse button that was pressed.
+    #                       modifiers: Any modifier keys pressed.
     #
-    # :param x: X-coordinate of the mouse.
-    # :param y: Y-coordinate of the mouse.
-    # :param button: Mouse button pressed.
-    # :param modifiers: Keyboard modifiers active during the event.
+    #       Output    :     None
+    #   Description   :     Manages the button's response to mouse press events, 
+    #                       transitioning to the press state if the button is pressed. 
+    #                       It can also trigger a callback function after the state change.
     ###----------------------------------------------------------------------
     def on_mouse_press(self, x, y, button, modifiers):
-        if self.is_mouse_over(x, y):
-            if self.state == 'hover_idle':
-                self.set_state('press_transition')
-            if self.state == "idle":
+        if self.is_inside(x, y):
+            if self.state in ['hover_idle', 'idle']:
                 self.set_state('press_transition')
 
-
+            # Trigger the callback after the state change to press_transition
+            if self.on_toggle_callback:
+                self.on_toggle_callback(self.state)
+    
+    
+    
     ###----------------------------------------------------------------------
-    # Handle mouse release events to transition to appropriate state.
+    #              <is_inside>()
+    #       Inputs    :     x, y: The coordinates to check.
     #
-    # :param x: X-coordinate of the mouse.
-    # :param y: Y-coordinate of the mouse.
-    # :param button: Mouse button released.
-    # :param modifiers: Keyboard modifiers active during the event.
+    #       Output    :     Boolean
+    #   Description   :     Determines if the given coordinates are inside the button's boundaries.
+    ###----------------------------------------------------------------------
+    def is_inside(self, x, y):
+        return (self.x <= x <= self.x + self.button_width and
+                self.y <= y <= self.y + self.button_height)
+
+    
+    
+    
+    ###----------------------------------------------------------------------
+    #           <on_mouse_release>()
+    #       Inputs    :     x, y: The coordinates of the mouse when the button is pressed.
+    #                       button: The mouse button that was pressed (e.g., left, right).
+    #                       modifiers: Any modifier keys pressed (e.g., Shift, Ctrl).
+    #
+    #       Output    :     None
+    #   Description   :     Handles the button's response to mouse release events, 
+    #                       transitioning away from the press state if necessary.
     ###----------------------------------------------------------------------
     def on_mouse_release(self, x, y, button, modifiers):
         if self.is_mouse_over(x, y):
@@ -185,56 +321,50 @@ class VideoButton:
                 self.set_state('unpress_transition')
 
 
+
+
     ###----------------------------------------------------------------------
-    # Check if the mouse cursor is over the button.
+    #           <is_mouse_over>()
+    #       Inputs    :     x, y: The coordinates to check.
     #
-    # :param x: X-coordinate of the mouse.
-    # :param y: Y-coordinate of the mouse.
-    # :return: True if the mouse is over the button, False otherwise.
+    #       Output    :     Boolean
+    #   Description   :     Checks if the mouse is currently over the button.
     ###----------------------------------------------------------------------
     def is_mouse_over(self, x, y):
         return self.x <= x <= self.x + self.button_width and self.y <= y <= self.y + self.button_height
 
 
+
+
     ###----------------------------------------------------------------------
-    # Draw the current video frame on the button.
+    #               <draw>()
+    #       Inputs    :     None
+    #
+    #       Output    :     None
+    #   Description   :     Draws the button's sprite on the screen. It updates 
+    #                       the sprite's position and renders it.
     ###----------------------------------------------------------------------
     def draw(self):
-        if self.current_player and self.current_player.source:
-            frame = self.current_player.texture
-            if frame:
-                frame.blit(self.x, self.y, width=self.button_width, height=self.button_height)
+        if self.sprite:
+            self.sprite.update(x=self.x, y=self.y)
+            self.sprite.draw()
+
+
 
 
     ###----------------------------------------------------------------------
-    # Update logic for the button (e.g., handle state transitions). This method is a placeholder
-    # and can be extended to include any per-frame updates.
+    #              <update>()
+    #       Inputs    :     dt: The time delta since the last update.
     #
-    # :param dt: Time since last update.
+    #       Output    :     None
+    #   Description   :     A placeholder function for updating logic, such as 
+    #                       handling state transitions or other periodic updates.
     ###----------------------------------------------------------------------
     def update(self, dt):
         # This can be used to update logic, e.g., handling state transitions, etc.
         pass
+
     
-
-    ###----------------------------------------------------------------------
-    # Adjust the button's size to fit the new window size while maintaining the original aspect ratio.
-    #
-    # :param width: New width of the window.
-    # :param height: New height of the window.
-    ###----------------------------------------------------------------------
-    def resize(self, width, height):
-        # Adjust button size according to new window size
-        aspect_ratio = self.original_width / self.original_height
-        if width / height > aspect_ratio:
-            self.button_height = height
-            self.button_width = int(height * aspect_ratio)
-        else:
-            self.button_width = width
-            self.button_height = int(width / aspect_ratio)
-        if self.verbose:
-            print(f"Button resized to {self.button_width}x{self.button_height}")
-
 
 
 
@@ -249,12 +379,13 @@ class VideoButton:
 #                           Example Execution
 ###########################################################################################
 
-# Main application window
+# # Main application window
 # window = pyglet.window.Window(800, 600, caption='Main Application Window', resizable=True)
+
 # batch = pyglet.graphics.Batch()
 
 # # Example usage of VideoButton
-# videos = {
+# detectButtonStateVisuals = {
 #     'idle': 'detectIdleState_15M.mp4',
 #     'hover_transition': 'detectHoverTransition_15M.mp4',
 #     'hover_idle': 'detectHoverIdle_15M.mp4',
@@ -264,7 +395,18 @@ class VideoButton:
 #     'unpress_transition': 'detectUnpressedTransition_15M.mp4'
 # }
 
-# video_button = VideoButton(1, 1, 300, 300, videos, batch, False)
+# trainButtonStateVisuals = {
+#     'idle': 'trainIdleState_15M.mp4',
+#     'hover_transition': 'trainHoverTransition_15M.mp4',
+#     'hover_idle': 'trainHoverIdle_15M.mp4',
+#     'dehover_transition': 'trainUnhoverTransition_15M.mp4',
+#     'press_transition': 'trainPressedTransition_15M.mp4',
+#     'press_idle': 'trainPressedIdle_15M.mp4',
+#     'unpress_transition': 'trainUnpressedTransition_15M.mp4'
+# }
+
+
+# video_button = VideoButton(1, 1, 30, 30, trainButtonStateVisuals, batch, False)
 
 # @window.event
 # def on_draw():
@@ -285,7 +427,7 @@ class VideoButton:
 
 # @window.event
 # def on_resize(width, height):
-#     video_button.resize(width, height)
-
+#     video_button.resize(width, height, maintain_initial_size=True)
+    
 # pyglet.clock.schedule_interval(video_button.update, 1/60)  # 60 Hz update rate
 # pyglet.app.run()
