@@ -11,8 +11,9 @@ import displayer
 import pyglet
 from pyglet.gl import *
 import event_support as esp
-import videoButton
+import uxElements as ux
 from logprinter import print_log, print_simple_log, log_std
+from PIL import Image
 
 
 
@@ -62,6 +63,32 @@ from logprinter import print_log, print_simple_log, log_std
 #                           on_resize()
 #------------------------------------------------------------------
 #
+#------------------------------------------------------------------
+#               LAST MODIFICATION
+#            Developer  :   Rishi Balasubramanian
+#            Call Sign  :   RBGA
+# Date of Modification  :   11th AUG 2024
+#
+#          Description  :   videoButton and Ux Elements are now in
+#                           their own file. Changed classes of video
+#                           button to new and implemented initial 
+#                           UX design with Main Window, Inference Window
+#                           and text window.
+#------------------------------------------------------------------
+#
+#------------------------------------------------------------------
+#               LAST MODIFICATION
+#            Developer  :   Rishi Balasubramanian
+#            Call Sign  :   RBGA
+# Date of Modification  :   13th AUG 2024
+#
+#          Description  :   Calculated Variables for every UI element
+#                           or display element was constructed and 
+#                           applied. Everything is now a factor of
+#                           WINDOW_WIDTH and WINDOW_HEIGHT variables
+#                           which determine size and scale of the elements.
+#                           Code Cleanup.
+#------------------------------------------------------------------
 #
 ################################################################################################
 
@@ -118,16 +145,16 @@ def load_model_worker(input_frames, output_frames, model_type, eventQueue, label
     log_std('Entered LOAD MODEL WORKER')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    allobj = list(range(1, 80))
-    obj = allobj[1:]
+    allobj = list(range(0, 600))
+    obj = allobj
 
     if model_type == "detect":
         print_simple_log('DETECT Loaded')
-        model = YOLO('yolov8n.pt').to(device)
+        model = YOLO('yolov8x-oiv7.pt').to(device)
         scsize = (640, 480)
     elif model_type == "train":
         print_simple_log('SEGMENT Loaded')
-        model = YOLO('yolov8n-seg.pt').to(device)
+        model = YOLO('yolov8x-seg.pt').to(device)
         #scsize = (256, 256)
         scsize = (640, 480)
 
@@ -144,12 +171,12 @@ def load_model_worker(input_frames, output_frames, model_type, eventQueue, label
         with torch.no_grad():
             if model_type == "detect":
                 #print_simple_log('DETECT Predicting')
-                results = model.predict(frame_processed, max_det=7, vid_stride=20, imgsz=640, classes=obj, conf=0.3, iou=0.5, verbose=False, device="cuda")
+                results = model.predict(frame_processed, imgsz=640, conf=0.3, iou=0.5, classes=obj, verbose=False, device="cuda")
                 processed_frame = object_detection.process_frame(frame_processed, frame, False, results, eventQueue, labelQueue)
             
             elif model_type == "train":
                 #print_simple_log('TRAIN Predicting')
-                results = model(frame_processed, max_det=1, vid_stride=20, imgsz=640, classes=39, conf=0.3, iou=0.5, verbose=False, device="cuda")
+                results = model(frame_processed, max_det=1, vid_stride=20, imgsz=640, classes=obj, conf=0.3, iou=0.5, verbose=False, device="cuda")
                 processed_frame = object_detection.process_frame(frame_processed, frame, True, results, eventQueue, labelQueue)
                 # Remove ignored class indices from allobj
                 obj = [i for i in allobj if i not in esp.rejected_obj.values()]
@@ -222,7 +249,10 @@ def detect(eventQueue, labelQueue):
     print_log('Started WORKER')
 
 
-
+def get_png_dimensions(png_file_path):
+    with Image.open(png_file_path) as img:
+        width, height = img.size
+    return width, height
 
 
 ###----------------------------------------------------------------------
@@ -250,27 +280,21 @@ def play():
     log_std("WIDTH  -> " + str(WINDOW_WIDTH))
     log_std("HEIGHT -> " + str(WINDOW_HEIGHT))
 
-    rect_width = WINDOW_WIDTH / 5
-    rect_height = WINDOW_HEIGHT / 3
-
     # Calculate the starting (x, y) point
     
-    config = pyglet.gl.Config(double_buffer=True)
+    config = pyglet.gl.Config(double_buffer=True, alpha_size=8)
     batch = pyglet.graphics.Batch()
     window = pyglet.window.Window(config=config, width=WINDOW_WIDTH, height=WINDOW_HEIGHT, caption='YOLOv5 Detection', resizable=True)
+    
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-    DETECT_LABEL = 'DETECT'
-    TRAIN_LABEL = 'TRAIN'
     # Flag to indicate if video is playing
     video_playing = False
     text_entry_active = False
 
     background = pyglet.graphics.Group(order=0)
     foreground = pyglet.graphics.Group(order=1)
-
-    textbox = pyglet.image.load('textBox.png')
-
-    sprite = displayer.create_scaled_sprite('textBox.png', window, batch, background)
 
     texture_id = GLuint()
     glGenTextures(1, ctypes.byref(texture_id))
@@ -280,44 +304,45 @@ def play():
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
 
-
-    # Calculate button positions
-    button_y = WINDOW_HEIGHT / 9  # Y position for the buttons, close to the bottom
-    button_spacing = 20  # Spacing between buttons
-
-    detectPositionX = (WINDOW_WIDTH - (3 * rect_width + button_spacing)) / 2  # Centering the buttons horizontally
-    trainPositionX = detectPositionX + rect_width + rect_width + button_spacing
-    tBoxX = (detectPositionX + trainPositionX) / 2 + (rect_width / 5) 
-    tBoxY = button_y - 30
-
     detectButtonStateVisuals = {
-                        'idle'  : 'detectIdleState_15M.mp4',
-            'hover_transition'  : 'detectHoverTransition_15M.mp4',
-                'hover_idle'    : 'detectHoverIdle_15M.mp4',
-        'dehover_transition'    : 'detectUnhoverTransition_15M.mp4',
-            'press_transition'  : 'detectPressedTransition_15M.mp4',
-                'press_idle'    : 'detectPressedIdle_15M.mp4',
-        'unpress_transition'    : 'detectUnpressedTransition_15M.mp4'
+    'idle'                  : 'detectIdleState_1_frames',
+    'hover_transition'      : 'detHoverTransition_1_frames',
+    'hover_idle'            : 'detHoverIdle_1_frames',
+    'dehover_transition'    : 'detUnhoverTransition_1_frames',
+    'press_transition'      : 'detPressedTransition_1_frames',
+    'press_idle'            : 'detPressedIdle_1_frames',
+    'unpress_transition'    : 'detUnpressedTransition_1_frames'
     }
-
+    
     trainButtonStateVisuals = {
-                        'idle'  : 'trainIdleState_15M.mp4',
-            'hover_transition'  : 'trainHoverTransition_15M.mp4',
-                'hover_idle'    : 'trainHoverIdle_15M.mp4',
-        'dehover_transition'    : 'trainUnhoverTransition_15M.mp4',
-            'press_transition'  : 'trainPressedTransition_15M.mp4',
-                'press_idle'    : 'trainPressedIdle_15M.mp4',
-        'unpress_transition'    : 'trainUnpressedTransition_15M.mp4'
+    'idle'                  : 'trainIdleState_1_frames',
+    'hover_transition'      : 'trainHoverTransition_1_frames',
+    'hover_idle'            : 'trainHoverIdle_1_frames',
+    'dehover_transition'    : 'trainUnhoverTransition_1_frames',
+    'press_transition'      : 'trainPressedTransition_1_frames',
+    'press_idle'            : 'trainPressedIdle_1_frames',
+    'unpress_transition'    : 'trainUnpressedTransition_1_frames'
     }
 
+    mainWindowEntrance      = 'mainWindowFrame_frames'  # Folder containing entrance animation PNGs
+    mainWindowLoop          = 'mainWindowFrameLoop_frames'  # Folder containing loop animation PNGs
+    inferenceEntrance       = 'inferenceWindowFrame_frames'  # Folder containing entrance animation PNGs
+    inferenceLoop           = 'infLoop_frames'  
+    twEntrance              = 'textWindow_frames'  # Folder containing entrance animation PNGs
+    twLoop                  = 'textWindowLoop_frames' 
+    textAnimation           = 'glow'
 
-    rect_x = (WINDOW_WIDTH - (2 * rect_width)) / 2 - button_spacing
-    rect_y = WINDOW_HEIGHT / 4
+    labelX = 0.49739583
+    labelY = 0.22407407
+    
+    textEntryX = 0.46
+    textEntryY = 0.087
 
     previousLabels = []
     allLabels = []
-
-
+    textAnimX           = 0.2890625
+    textAnimY           = 0.125
+   # animation_instance = ux.uxAnimation(textAnimX, textAnimY, 800, 249, WINDOW_WIDTH, WINDOW_HEIGHT, textAnimation, batch)
 
     ###----------------------------------------------------------------------
     #           update_labels()
@@ -330,6 +355,8 @@ def play():
     #   Description   :     Updates the displayed labels based on new text inputs. Compares new text 
     #                       with previous labels, clears old labels if necessary, and draws new labels.
     ###----------------------------------------------------------------------
+   
+
     def update_labels(texts, allLabels, previousLabels, batch):
         # Convert new_texts to string if needed
         new_texts = str(texts)
@@ -345,7 +372,7 @@ def play():
             previousLabels.append(new_texts)  # Store new text
 
             # Draw new label
-            draw_prompt(texts, (WINDOW_WIDTH/2, 700), batch, allLabels)
+            draw_prompt(texts, (WINDOW_WIDTH * labelX, WINDOW_HEIGHT * labelY), batch, allLabels)
 
 
 
@@ -381,8 +408,8 @@ def play():
         for i, line in enumerate(text):
             label = pyglet.text.Label(
                 str(line),
-                font_name='Arial',
-                font_size=12,
+                font_name='Play',
+                font_size=16,
                 x=position[0],
                 y=position[1],
                 anchor_x='center',
@@ -450,19 +477,101 @@ def play():
             text_entry_active = True
 
     # # Render buttons
-    # detectButton = displayer.render_button(DETECT_LABEL, detectPositionX, button_y, 'detect_press.png', 'detect_unpress.png', 'detect_hover.png', batch)
-    # trainButton = displayer.render_button(TRAIN_LABEL, trainPositionX, button_y, 'train_press.png', 'train_unpress.png', 'train_hover.png', batch)
-    te_b = displayer.render_TextEntry(tBoxX, tBoxY, batch)
-
-    detectButton = videoButton.VideoButton(detectPositionX, button_y, 200, 200, WINDOW_WIDTH, WINDOW_HEIGHT, detectButtonStateVisuals, batch, foreground, on_dt_toggle, False)
-    trainButton  = videoButton.VideoButton(trainPositionX,  button_y, 200, 200, WINDOW_WIDTH, WINDOW_HEIGHT, trainButtonStateVisuals,  batch, foreground, on_tr_toggle, False)
-
-    # window.push_handlers(detectButton)
-    # window.push_handlers(trainButton)
+    te_b = displayer.render_TextEntry(WINDOW_WIDTH * textEntryX, WINDOW_HEIGHT * textEntryY, batch)
 
 
-    # detectButton.set_handler('on_toggle', on_dt_toggle)
-    # trainButton.set_handler('on_toggle', on_tr_toggle)
+    #Elements Position Calculations
+    detectX         = 0.0598958333333333
+    detectY         = 0.0944444444444444
+    trainX          = 0.7942708333333333
+    trainY          = detectY
+    buttonsScaleX   = 0.140625
+    buttonsScaleY   = 0.25
+    
+    inferenceX      = 0.1875
+    inferenceY      = 0.32407
+    inferenceScaleX = 0.625
+    inferenceScaleY = 0.625
+    
+    textX           = 0.2890625
+    textY           = 0.125
+    textScaleX      = 0.4166666666666667
+    textScaleY      = 0.1972222222222222
+    
+    inferenceSpriteX = 0.2864583333333333
+    inferenceSpriteY = 0.3981481481481481
+
+
+    detectButton = ux.uxLiveButton(
+        x                   =   WINDOW_WIDTH    * detectX, 
+        y                   =   WINDOW_HEIGHT   * detectY,
+        width               =   WINDOW_WIDTH    * buttonsScaleX, 
+        height              =   WINDOW_HEIGHT   * buttonsScaleY, 
+        WINDOW_WIDTH        =   WINDOW_WIDTH, 
+        WINDOW_HEIGHT       =   WINDOW_HEIGHT, 
+        videos              =   detectButtonStateVisuals, 
+        batch               =   batch, 
+        group               =   foreground, 
+        on_toggle_callback  =   on_dt_toggle, 
+        verbose             =   False
+        )
+    
+    trainButton = ux.uxLiveButton(
+        x                   =   WINDOW_WIDTH    * trainX, 
+        y                   =   WINDOW_HEIGHT   * trainY,
+        width               =   WINDOW_WIDTH    * buttonsScaleX, 
+        height              =   WINDOW_HEIGHT   * buttonsScaleY, 
+        WINDOW_WIDTH        =   WINDOW_WIDTH, 
+        WINDOW_HEIGHT       =   WINDOW_HEIGHT, 
+        videos              =   trainButtonStateVisuals, 
+        batch               =   batch, 
+        group               =   foreground, 
+        on_toggle_callback  =   on_tr_toggle, 
+        verbose             =   False
+        )
+    
+    main_window_frame = ux.uxWindowElements(
+        x               =   0, 
+        y               =   0, 
+        width           =   WINDOW_WIDTH, 
+        height          =   WINDOW_HEIGHT, 
+        WINDOW_WIDTH    =   WINDOW_WIDTH, 
+        WINDOW_HEIGHT   =   WINDOW_HEIGHT, 
+        entrance_videos =   mainWindowEntrance, 
+        loop_videos     =   mainWindowLoop, 
+        batch           =   batch, 
+        group           =   background,
+        verbose         =   False
+    )
+    
+    inference_window_frame = ux.uxWindowElements(
+        x               =   WINDOW_WIDTH    *   inferenceX, 
+        y               =   WINDOW_HEIGHT   *   inferenceY, 
+        width           =   WINDOW_WIDTH    *   inferenceScaleX, 
+        height          =   WINDOW_HEIGHT   *   inferenceScaleY, 
+        WINDOW_WIDTH    =   WINDOW_WIDTH, 
+        WINDOW_HEIGHT   =   WINDOW_HEIGHT, 
+        entrance_videos =   inferenceEntrance, 
+        loop_videos     =   inferenceLoop, 
+        batch           =   batch, 
+        group           =   foreground,
+        verbose         =   False
+    )
+    
+    text_window_frame = ux.uxWindowElements(
+        x               =   WINDOW_WIDTH    *   textX, 
+        y               =   WINDOW_HEIGHT   *   textY, 
+        width           =   WINDOW_WIDTH    *   textScaleX, 
+        height          =   WINDOW_HEIGHT   *   textScaleY, 
+        WINDOW_WIDTH    =   WINDOW_WIDTH, 
+        WINDOW_HEIGHT   =   WINDOW_HEIGHT, 
+        entrance_videos =   twEntrance, 
+        loop_videos     =   twLoop, 
+        batch           =   batch, 
+        group           =   foreground,
+        verbose         =   False
+    )
+    
     te_b.set_handler('on_commit', text_entry_handler)
     
 
@@ -478,18 +587,18 @@ def play():
     ###----------------------------------------------------------------------
     def on_draw():
         window.clear()
+
+        # Draw the batch and buttons
         batch.draw()
-        detectButton.draw()
-        trainButton.draw()
+
         # Set up the top viewport (640x640)
         glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
         try:
             if video_playing:
                 try:
                     op = output_frames.get_nowait()  # Use get_nowait to avoid blocking
-                    pyg = displayer.cv2_to_pyglet_image(op)
-                    inferenceSprite = pyglet.sprite.Sprite(img=pyg, x=rect_x, y=rect_y, batch=batch, group=foreground)
-                    #pyg.blit(rect_x, rect_y, 0)
+                    pyg = displayer.cv2_to_pyglet_image(op, WINDOW_WIDTH, WINDOW_HEIGHT)
+                    inferenceSprite = pyglet.sprite.Sprite(img=pyg, x=WINDOW_WIDTH * inferenceSpriteX, y=WINDOW_HEIGHT * inferenceSpriteY, batch=batch, group=foreground)
                     
                     try:
                         new_texts = labelQueue.get_nowait()
@@ -509,9 +618,9 @@ def play():
             print(f"Error occurred: {e}")
             displayer.render_splash_screen()
         
+        # Draw the batch and buttons again in case they need to be redrawn
         batch.draw()
-        detectButton.draw()
-        trainButton.draw()
+
 
     @window.event
     ###----------------------------------------------------------------------
@@ -590,9 +699,18 @@ def play():
     def on_resize(width, height):
         detectButton.resize(width, height)
         trainButton.resize(width, height)
+        inference_window_frame.resize(width, height)
+        text_window_frame.resize(width, height)
 
-    pyglet.clock.schedule_interval(detectButton.update, 1/60)  # 60 Hz update rate
-    pyglet.clock.schedule_interval(trainButton.update, 1/60)  # 60 Hz update rate
+    
+    def update(dt):
+        detectButton.update(dt)
+        trainButton.update(dt)
+        main_window_frame.update(dt)
+        inference_window_frame.update(dt)
+        text_window_frame.update(dt)
+        
+    pyglet.clock.schedule_interval(update, 1/60)  # 60 Hz update rate
 
 
 
@@ -649,7 +767,6 @@ def play():
             toggle_text_entry(text_entry_active)
 
         
-
     @window.event
     ###----------------------------------------------------------------------
     #               on_close()
@@ -660,6 +777,8 @@ def play():
     ###----------------------------------------------------------------------
     def on_close():
         pyglet.app.exit()
+    
+    
 
     pyglet.app.run()
 

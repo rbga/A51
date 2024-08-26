@@ -169,9 +169,12 @@ def create_scaled_sprite(image_path, window, batch, group):
 #                       format (RGB). It extracts image data and prepares it for use in 
 #                       Pyglet applications, such as for textures or sprites.
 ###----------------------------------------------------------------------
-def cv2_to_pyglet_image(cv2_frame):
+def cv2_to_pyglet_image(cv2_frame, infW, infH):
+    scsize = (int(infW * 0.4166666666666667), int(infH * 0.462962962962963))
+    cv2_frame = cv2.resize(cv2_frame, scsize)
     height, width, channels = cv2_frame.shape
     # Convert BGR to RGB
+    
     cv2_frame_rgb = cv2.cvtColor(cv2_frame, cv2.COLOR_BGR2RGB)
     # Create a Pyglet image from the RGB frame
     image_data = cv2_frame_rgb.tobytes()

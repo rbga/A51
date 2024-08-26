@@ -82,7 +82,7 @@ def draw_crosshair(image, x1, y1, x2, y2, label):
     gap_length=5
     # Define box color and label background color
    # Define box color and label background color
-    box_color = (0, 255, 255)  # Yellow
+    box_color = (255, 0, 0)  # Green
     label_text_color = (0, 0, 0)  # Black
 
     # Draw the label text
@@ -112,7 +112,7 @@ def draw_crosshair(image, x1, y1, x2, y2, label):
 
     # Draw all lines at once
     for i in range(0, len(line_points), 2):
-        cv2.line(image, tuple(line_points[i]), tuple(line_points[i+1]), box_color, 1)
+        cv2.line(image, tuple(line_points[i]), tuple(line_points[i+1]), box_color, 2)
 
     # Draw the crosshairs at the midpoints
     mid_x = (x1 + x2) // 2

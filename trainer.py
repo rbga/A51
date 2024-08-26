@@ -30,9 +30,14 @@ import torch
 
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
+
+    print(torch.cuda.is_available())
+    print(torch.cuda.device_count())
+
 
     #model = YOLO('C:/Users/ganes/Desktop/AI/Vision/runs/detect/train14/weights/best.pt').to(device)
-    model = YOLO('yolov8m.pt').to(device)
-    model.train(data='C:/Users/ganes/Desktop/AI/Vision/Cattle/cowabunga.yaml', epochs=50, imgsz=416, batch=-1, scale=0.5, save=True)
+    model = YOLO('yolov8x.pt').to(device)
+    model.train(data='D:\\RBGA\\mscoco\\data.yaml', epochs=300, imgsz=320, batch=28, save=True)
 
     print("DONE")

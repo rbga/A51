@@ -127,7 +127,7 @@ def detect_an_object(frame_processed, original_frame, scsize, results, event_que
                     else:
                         class_name = esp.state["obj_name"]
 
-                    annotator.seg_bbox(mask=mask, mask_color=(0, 255, 255), det_label=str(class_name))
+                    annotator.seg_bbox(mask=mask, mask_color=(0, 255, 255), label=str(class_name))
                     frameT1 = original_frame.copy()
 
 
@@ -166,7 +166,7 @@ def detect_an_object(frame_processed, original_frame, scsize, results, event_que
                     if vsp.is_inside_fixed_rect(r.boxes[i].xyxy[0].cpu().tolist(), (fixed_rect_x1, fixed_rect_y1, fixed_rect_x2, fixed_rect_y2)) and (esp.state["got_name"]):
                         original_frame = frameT1.copy()
                         class_name = esp.state["obj_name"]
-                        labelQueue.put(f"Name: {esp.state["obj_name"]} Stored. Press -c- to start Training.")
+                        labelQueue.put(f'Name: {esp.state["obj_name"]} Stored. Press -c- to start Training.')
                         esp.handle_event(event_queue, esp.state)
            
 
@@ -180,7 +180,7 @@ def detect_an_object(frame_processed, original_frame, scsize, results, event_que
                     #FRONT
                     if vsp.is_inside_fixed_rect(r.boxes[i].xyxy[0].cpu().tolist(), (fixed_rect_x1, fixed_rect_y1, fixed_rect_x2, fixed_rect_y2)) and (esp.state["tempState"] and not esp.state["ievent_C"]):
                         original_frame = frameT1.copy()
-                        labelQueue.put(f"{esp.state["obj_name"]} - FRONT. Press N to Capture")
+                        labelQueue.put(f'{esp.state["obj_name"]} - FRONT. Press N to Capture')
                         esp.handle_event(event_queue, esp.state)
 
                     if esp.state["inner"] and esp.state["tempState"]:
@@ -197,7 +197,7 @@ def detect_an_object(frame_processed, original_frame, scsize, results, event_que
                     #LEFT
                     if vsp.is_inside_fixed_rect(r.boxes[i].xyxy[0].cpu().tolist(), (fixed_rect_x1, fixed_rect_y1, fixed_rect_x2, fixed_rect_y2)) and (esp.orientations["front"] and esp.state["event_R"]):
                         original_frame = frameT1.copy()
-                        labelQueue.put(f"{esp.state["obj_name"]} - LEFT. Press N to Capture")
+                        labelQueue.put(f'{esp.state["obj_name"]} - LEFT. Press N to Capture')
                         esp.handle_event(event_queue, esp.state)
 
                     if esp.state["inner"] and esp.orientations["front"]:
@@ -215,7 +215,7 @@ def detect_an_object(frame_processed, original_frame, scsize, results, event_que
                     #BACK
                     if vsp.is_inside_fixed_rect(r.boxes[i].xyxy[0].cpu().tolist(), (fixed_rect_x1, fixed_rect_y1, fixed_rect_x2, fixed_rect_y2)) and (esp.orientations["left"] and esp.state["event_R"]):
                         original_frame = frameT1.copy()
-                        labelQueue.put(f"{esp.state["obj_name"]} - BACK. Press N to Capture")
+                        labelQueue.put(f'{esp.state["obj_name"]} - BACK. Press N to Capture')
                         esp.handle_event(event_queue, esp.state)
 
                     if esp.state["inner"] and esp.orientations["left"]:
@@ -234,7 +234,7 @@ def detect_an_object(frame_processed, original_frame, scsize, results, event_que
                     #RIGHT
                     if vsp.is_inside_fixed_rect(r.boxes[i].xyxy[0].cpu().tolist(), (fixed_rect_x1, fixed_rect_y1, fixed_rect_x2, fixed_rect_y2)) and (esp.orientations["back"] and esp.state["event_R"]):
                         original_frame = frameT1.copy()
-                        labelQueue.put(f"{esp.state["obj_name"]} - RIGHT. Press N to Capture")
+                        labelQueue.put(f'{esp.state["obj_name"]} - RIGHT. Press N to Capture')
                         esp.handle_event(event_queue, esp.state)                        
 
                     if esp.state["inner"] and esp.orientations["back"]:
@@ -252,7 +252,7 @@ def detect_an_object(frame_processed, original_frame, scsize, results, event_que
                     #TOP
                     if vsp.is_inside_fixed_rect(r.boxes[i].xyxy[0].cpu().tolist(), (fixed_rect_x1, fixed_rect_y1, fixed_rect_x2, fixed_rect_y2)) and (esp.orientations["right"] and esp.state["event_R"]):
                         original_frame = frameT1.copy()
-                        labelQueue.put(f"{esp.state["obj_name"]} - TOP. Press N to Capture")
+                        labelQueue.put(f'{esp.state["obj_name"]} - TOP. Press N to Capture')
                         esp.handle_event(event_queue, esp.state) 
 
                     if esp.state["inner"] and esp.orientations["right"]:
@@ -271,7 +271,7 @@ def detect_an_object(frame_processed, original_frame, scsize, results, event_que
                     #BOTTOM
                     if vsp.is_inside_fixed_rect(r.boxes[i].xyxy[0].cpu().tolist(), (fixed_rect_x1, fixed_rect_y1, fixed_rect_x2, fixed_rect_y2)) and (esp.orientations["top"] and esp.state["event_R"]):
                         original_frame = frameT1.copy()
-                        labelQueue.put(f"{esp.state["obj_name"]} - BOTTOM. Press N to Capture")
+                        labelQueue.put(f'{esp.state["obj_name"]} - BOTTOM. Press N to Capture')
                         esp.handle_event(event_queue, esp.state) 
 
                     if esp.state["inner"] and esp.orientations["top"]:
