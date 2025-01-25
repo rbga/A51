@@ -10,6 +10,7 @@ An attempt...
 - The video demo shown in this readme uses Open Images v7 dataset by Google, consisting of 600 object classes across 9 million images.
 - Detect Mode uses Ultralytics YOLO v8, X sized OIV7 pretrained model to detect every day objects in real-time.
 - Train Mode (under development) is envisioned to help user create datasets of common objects, through user input, capturing cropped images of object shown in camera in real-time.
+- GPU is efficiently used to detect, track and segment Objects in Real Time using NVIDIA CUDA and PyTorch
 
 https://github.com/user-attachments/assets/356d191e-1521-4bda-880c-2116d55c3889
 
