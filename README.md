@@ -3,7 +3,17 @@ An attempt...
 
 # YOLOv5 Detection and Training Application
 
-This application is designed to perform object detection using the YOLOv5 model, train custom models, and visualize the results in real-time using Pyglet and OpenGL.
+- This application is designed to perform object detection using the YOLOv5 model, train custom models, and visualize the results in real-time using Pyglet and OpenGL.
+- The User Interface is custom designed from scratch where the concept was developed and rendered into GIF series on Adobe After Effects CC, and rendered into seamless live UI components by the Pyglet Game Engine's batch rendering abilities.
+- Look into class uxElements.py for usage instructions. It is a unified UI class, that can take in any GIF series to convert it into a functioning UI element.
+- Employs multiple cores to execute. A core is dedicated to capturing frames, another to process the frames where GPU is involved in AI Object Detection and rendering by OpenGL, another to display the frames where all of these cores communicate through inter-process Pipes including one for user inputs, to ensure consistent and reliable, real-time streaming with negligible delay.
+- The video demo shown in this readme uses Open Images v7 dataset by Google, consisting of 600 object classes across 9 million images.
+- Detect Mode uses Ultralytics YOLO v8, X sized OIV7 pretrained model to detect every day objects in real-time.
+- Train Mode (under development) is envisioned to help user create datasets of common objects, through user input, capturing cropped images of object shown in camera in real-time.
+
+https://github.com/user-attachments/assets/356d191e-1521-4bda-880c-2116d55c3889
+
+
 
 ## Features
 - **Object Detection:** Capture frames from a video source and perform object detection using a pre-trained YOLOv5 model.
@@ -49,7 +59,7 @@ You can toggle between these modes using the provided buttons in the GUI.
 Run the following command to start the application:
 
 ```bash
-python app.py
+python main.py
 ```
 The window will open, showing live video or training progress based on the selected mode.
 
@@ -87,6 +97,16 @@ if __name__ == "__main__":
 
     play()  # Starts the application
 ```
+
+## Detect Application
+
+https://github.com/user-attachments/assets/0b757c3f-9f1a-47b2-9525-6130363cb53d
+
+
+## Train Application (under Development)
+
+https://github.com/user-attachments/assets/1631210b-7983-4653-aaf7-2195f6e8f3d1
+
 
 
 Notes:
